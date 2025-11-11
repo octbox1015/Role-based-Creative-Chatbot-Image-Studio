@@ -1,20 +1,14 @@
 import streamlit as st
+import openai
 import base64
 
 # ===========================
-# OpenAI SDK 初始化（兼容新旧版本）
+# Set API Key for OpenAI
 # ===========================
-try:
-    from openai import OpenAI
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    use_new_sdk = True
-except ImportError:
-    import openai
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-    use_new_sdk = False
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # ===========================
-# 页面配置
+# Page Setup
 # ===========================
 st.set_page_config(
     page_title="🎭 Role-based Creative Chatbot + Image Studio",
@@ -26,7 +20,7 @@ st.title("🎭 Role-based Creative Chatbot + Image Studio")
 st.markdown("Chat with AI in different creative roles and generate images! 🎨")
 
 # ===========================
-# 角色选择
+# Define Roles
 # ===========================
 roles = {
     "Film Critic": "You are a sharp and insightful film critic with expertise in film analysis and visual storytelling.",
@@ -36,6 +30,9 @@ roles = {
     "Creative Writing Mentor": "You are a creative writing mentor helping craft emotional, vivid, and expressive writing."
 }
 
+# ===========================
+# Sidebar
+# ===========================
 st.sidebar.header("🧠 Choose a Role")
 role = st.sidebar.selectbox("Select a role for the chatbot:", list(roles.keys()))
 role_prompt = roles[role]
@@ -44,7 +41,7 @@ st.sidebar.markdown("---")
 enable_image = st.sidebar.checkbox("Enable Image Generation")
 
 # ===========================
-# 聊天功能
+# Chat Section
 # ===========================
 st.subheader(f"💬 Chat with {role}")
 if "chat_history" not in st.session_state:
@@ -57,28 +54,17 @@ if st.button("Send Message"):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
 
         with st.spinner("Thinking..."):
-            if use_new_sdk:
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": role_prompt},
-                        *st.session_state.chat_history
-                    ]
-                )
-                ai_reply = response.choices[0].message.content
-            else:
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {"role": "system", "content": role_prompt},
-                        *st.session_state.chat_history
-                    ]
-                )
-                ai_reply = response["choices"][0]["message"]["content"]
-
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": role_prompt},
+                    *st.session_state.chat_history
+                ]
+            )
+            ai_reply = response["choices"][0]["message"]["content"]
             st.session_state.chat_history.append({"role": "assistant", "content": ai_reply})
 
-# 显示聊天记录
+# Display chat history
 for chat in st.session_state.chat_history:
     if chat["role"] == "user":
         st.markdown(f"**🧍 You:** {chat['content']}")
@@ -86,7 +72,7 @@ for chat in st.session_state.chat_history:
         st.markdown(f"**🎭 {role}:** {chat['content']}")
 
 # ===========================
-# 图片生成功能
+# Image Generation Section
 # ===========================
 st.markdown("---")
 st.subheader("🎨 Image Studio")
@@ -97,29 +83,17 @@ if st.button("Generate Image"):
     if image_prompt.strip() != "":
         if enable_image:
             with st.spinner("Generating image..."):
-                if use_new_sdk:
-                    result = client.images.generate(
-                        model="gpt-image-1",
-                        prompt=image_prompt,
-                        size="1024x1024"
-                    )
-                    image_base64 = result.data[0].b64_json
-                    image_bytes = base64.b64decode(image_base64)
-                else:
-                    result = openai.Image.create(
-                        model="gpt-image-1",
-                        prompt=image_prompt,
-                        size="1024x1024"
-                    )
-                    image_url = result["data"][0]["url"]
-                    st.image(image_url, caption="🎨 AI-generated image", use_container_width=True)
-                    image_bytes = None
-
-                if image_bytes:
-                    st.image(image_bytes, caption="🎨 AI-generated image", use_container_width=True)
+                result = openai.Image.create(
+                    model="gpt-image-1",
+                    prompt=image_prompt,
+                    size="1024x1024"
+                )
+                image_url = result["data"][0]["url"]
+                st.image(image_url, caption="🎨 AI-generated image", use_container_width=True)
 
 # ===========================
 # Footer
 # ===========================
 st.markdown("---")
 st.caption("Created with ❤️ · Powered by OpenAI & Streamlit")
+
